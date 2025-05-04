@@ -1,0 +1,942 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linq</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Professional typography */
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #ffffff;
+            color: #333333;
+        }
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: #ffffff;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            padding: 2rem;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.3s ease-out;
+            color: #333333;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666666;
+            transition: color 0.2s ease;
+        }
+        .close-btn:hover {
+            color: #000000;
+        }
+        /* Smooth transitions for articles */
+        article {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: #f9f9f9;
+        }
+        article:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        /* Input field styles */
+        input, select, textarea {
+            transition: border-color 0.3s ease;
+            background: #ffffff;
+            color: #333333;
+            border-color: #cccccc;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #60a5fa;
+            outline: none;
+        }
+        input::placeholder, textarea::placeholder {
+            color: #999999;
+        }
+        /* Button hover effects */
+        button {
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        /* Navigation bar styles */
+        .nav-link {
+            transition: color 0.2s ease;
+            color: #333333;
+        }
+        .nav-link:hover {
+            color: #60a5fa;
+        }
+        /* Favorites icon animation */
+        .favorite-btn {
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        .favorite-btn:hover {
+            color: #f59e0b;
+            transform: scale(1.2);
+        }
+        .favorited {
+            color: #f59e0b;
+        }
+        /* Terms and Privacy sections */
+        .terms-privacy-content {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 12px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            z-index: 60;
+            color: #333333;
+        }
+        /* Sidebar styles */
+        .sidebar {
+            position: sticky;
+            top: 2rem;
+            height: fit-content;
+            background: #f9f9f9;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar label:hover {
+            background: #e5e5e5;
+        }
+        /* Category tag styles */
+        .category-tag {
+            display: inline-block;
+            background: #e5e5e5;
+            color: #333333;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            margin-left: 0.5rem;
+        }
+        /* News article thumbnail images */
+        .news-image {
+            width: 150px;
+            height: 100px;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+        .news-image:hover {
+            transform: scale(1.05);
+        }
+        /* Search icon style */
+        .search-icon {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .search-icon:hover {
+            transform: scale(1.1);
+        }
+        /* Fade animations */
+        .fade-in {
+            animation: fadeIn 2s ease-in;
+        }
+        .fade-out {
+            animation: fadeOut 2s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        /* Tagline styling */
+        .tagline {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .tagline .highlight {
+            color: #60a5fa;
+        }
+        /* Market Updates Section */
+        .market-section {
+            background: #ffffff;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        .market-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .market-tab {
+            cursor: pointer;
+            font-weight: bold;
+            color: #666666;
+            padding: 0.5rem 1rem;
+            transition: color 0.2s ease;
+        }
+        .market-tab:hover, .market-tab.active {
+            color: #000000;
+        }
+        .market-content {
+            display: none;
+        }
+        .market-content.active {
+            display: block;
+        }
+        .market-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .market-table th, .market-table td {
+            padding: 0.75rem;
+            text-align: right;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        .market-table th:first-child, .market-table td:first-child {
+            text-align: left;
+            color: #333333;
+        }
+        .positive {
+            color: #10b981;
+        }
+        .negative {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="bg-white py-4 shadow">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <a href="#" class="text-4xl font-bold text-gray-800">Linq</a>
+            <div class="flex items-center space-x-6">
+                <a href="#news" class="nav-link">News</a>
+                <a href="#favorites" id="favoritesTab" class="nav-link hidden">Favorites</a>
+                <button id="submitArticleBtn" class="nav-link hidden">Submit Article</button>
+                <button id="authBtn" class="nav-link" onclick="showModal()">Login / Sign Up</button>
+                <button id="logoutBtn" class="nav-link hidden" onclick="handleLogout()">Logout</button>
+                <svg class="search-icon" fill="none" stroke="#333333" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z"></path>
+                </svg>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Welcome and Tagline Section -->
+    <div id="welcomeMessage" class="text-center text-gray-800 text-2xl py-10"></div>
+    <div id="tagline" class="tagline hidden"></div>
+
+    <!-- Market Updates Section -->
+    <section class="market-section max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="market-tabs">
+            <div id="tabUS" class="market-tab active">US</div>
+            <div id="tabWorld" class="market-tab">World</div>
+            <div id="tabCommodities" class="market-tab">Commodities</div>
+            <div id="tabFutures" class="market-tab">Futures</div>
+            <div id="tabTreasuries" class="market-tab">Treasuries</div>
+        </div>
+        <div id="marketUSContent" class="market-content active">
+            <table class="market-table">
+                <tr>
+                    <th>Dow Jones</th>
+                    <td>41,317.43</td>
+                    <td>564.47</td>
+                    <td class="positive">+1.39%</td>
+                </tr>
+                <tr>
+                    <th>S&P 500</th>
+                    <td>5,686.68</td>
+                    <td>82.54</td>
+                    <td class="positive">+1.47%</td>
+                </tr>
+                <tr>
+                    <th>Nasdaq</th>
+                    <td>17,977.73</td>
+                    <td>266.99</td>
+                    <td class="positive">+1.51%</td>
+                </tr>
+            </table>
+        </div>
+        <div id="marketWorldContent" class="market-content">
+            <table class="market-table">
+                <tr>
+                    <th>FTSE 100 (UK)</th>
+                    <td>8,200.67</td>
+                    <td>-0.05</td>
+                    <td class="negative">-0.01%</td>
+                </tr>
+                <tr>
+                    <th>Nikkei 225 (Japan)</th>
+                    <td>38,500.89</td>
+                    <td>0.10</td>
+                    <td class="positive">+0.00%</td>
+                </tr>
+                <tr>
+                    <th>DAX (Germany)</th>
+                    <td>18,100.23</td>
+                    <td>0.07</td>
+                    <td class="positive">+0.00%</td>
+                </tr>
+            </table>
+        </div>
+        <div id="marketCommoditiesContent" class="market-content">
+            <table class="market-table">
+                <tr>
+                    <th>Dow Jones</th>
+                    <td>41,317.43</td>
+                    <td>564.47</td>
+                    <td class="positive">+1.39%</td>
+                </tr>
+                <tr>
+                    <th>S&P 500</th>
+                    <td>5,686.68</td>
+                    <td>82.54</td>
+                    <td class="positive">+1.47%</td>
+                </tr>
+                <tr>
+                    <th>Nasdaq</th>
+                    <td>17,977.73</td>
+                    <td>266.99</td>
+                    <td class="positive">+1.51%</td>
+                </tr>
+                <tr>
+                    <th>Crude Oil</th>
+                    <td>58.29</td>
+                    <td>-0.95</td>
+                    <td class="negative">-1.60%</td>
+                </tr>
+                <tr>
+                    <th>Gold</th>
+                    <td>3,239.34</td>
+                    <td>2.08</td>
+                    <td class="positive">+0.0643%</td>
+                </tr>
+                <tr>
+                    <th>Bitcoin</th>
+                    <td>95,704.79</td>
+                    <td>-222.49</td>
+                    <td class="negative">-0.23%</td>
+                </tr>
+            </table>
+        </div>
+        <div id="marketFuturesContent" class="market-content">
+            <table class="market-table">
+                <tr>
+                    <th>S&P 500 Futures</th>
+                    <td>5,210.00</td>
+                    <td>0.10</td>
+                    <td class="positive">+0.00%</td>
+                </tr>
+                <tr>
+                    <th>Crude Oil Futures</th>
+                    <td>78.60</td>
+                    <td>0.18</td>
+                    <td class="positive">+0.00%</td>
+                </tr>
+                <tr>
+                    <th>Gold Futures</th>
+                    <td>2,755.00</td>
+                    <td>0.05</td>
+                    <td class="positive">+0.00%</td>
+                </tr>
+            </table>
+        </div>
+        <div id="marketTreasuriesContent" class="market-content">
+            <table class="market-table">
+                <tr>
+                    <th>10-Year Treasury Yield</th>
+                    <td>4.40%</td>
+                    <td>0.02</td>
+                    <td class="positive">+0.00%</td>
+                </tr>
+                <tr>
+                    <th>2-Year Treasury Yield</th>
+                    <td>4.15%</td>
+                    <td>0.01</td>
+                    <td class="positive">+0.00%</td>
+                </tr>
+                <tr>
+                    <th>30-Year Treasury Yield</th>
+                    <td>4.65%</td>
+                    <td>0.03</td>
+                    <td class="positive">+0.00%</td>
+                </tr>
+            </table>
+        </div>
+    </section>
+
+    <!-- Login/Sign-Up Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">×</span>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Join Linq</h2>
+            <p class="text-gray-600 mb-6">Sign up or log in to access exclusive content and personalized updates.</p>
+            <div class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Name (Sign Up Only)</label>
+                    <input type="text" id="name" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Your Name">
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="your@email.com">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+                </div>
+                <div class="flex space-x-4">
+                    <button onclick="handleLogin()" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">Log In</button>
+                    <button onclick="handleSignup()" class="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600">Sign Up</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Article Submission Modal -->
+    <div id="submitArticleModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeSubmitModal()">×</span>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Submit Your Article</h2>
+            <form id="articleForm" class="space-y-4">
+                <div>
+                    <label for="articleTitle" class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" id="articleTitle" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Article Title" required>
+                </div>
+                <div>
+                    <label for="articleContent" class="block text-sm font-medium text-gray-700">Content</label>
+                    <textarea id="articleContent" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="4" placeholder="Article Content" required></textarea>
+                </div>
+                <div>
+                    <label for="articleCategory" class="block text-sm font-medium text-gray-700">Category</label>
+                    <select id="articleCategory" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required>
+                        <option value="Crude Oil">Crude Oil</option>
+                        <option value="Natural Gas">Natural Gas</option>
+                        <option value="Petrochemicals">Petrochemicals</option>
+                        <option value="Power">Power</option>
+                        <option value="Renewables">Renewables</option>
+                        <option value="Company News">Company News</option>
+                        <option value="Earnings">Earnings</option>
+                        <option value="Trending">Trending</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="articleImage" class="block text-sm font-medium text-gray-700">Image (Optional)</label>
+                    <input type="file" id="articleImage" class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700" accept="image/*">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">Submit Article</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Terms and Privacy Sections -->
+    <div id="termsContent" class="terms-privacy-content">
+        <span class="close-btn" onclick="closeTerms()">×</span>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Terms of Service</h2>
+        <p>Welcome to Linq. By accessing or using our website, you agree to comply with and be bound by the following terms and conditions. These terms govern your use of the site and any services provided.</p>
+        <p class="mt-4">1. <strong>Acceptance of Terms</strong>: By using this site, you accept these terms in full. If you disagree, please do not use the site.</p>
+        <p class="mt-2">2. <strong>User Conduct</strong>: You agree not to use the site for illegal or unauthorized purposes.</p>
+        <p class="mt-2">3. <strong>Content Ownership</strong>: All content on this site is owned by Linq or its licensors unless otherwise stated.</p>
+        <p class="mt-2">4. <strong>Limitation of Liability</strong>: We are not liable for any indirect or consequential damages arising from your use of the site.</p>
+        <p class="mt-2">For the most current version, please contact us at support@linq.com.</p>
+    </div>
+    <div id="privacyContent" class="terms-privacy-content">
+        <span class="close-btn" onclick="closePrivacy()">×</span>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Privacy Policy</h2>
+        <p>At Linq, we are committed to protecting your privacy. This policy outlines how we collect, use, and safeguard your information.</p>
+        <p class="mt-4">1. <strong>Information Collection</strong>: We collect personal information such as your name and email when you sign up or submit articles.</p>
+        <p class="mt-2">2. <strong>Use of Information</strong>: Your data is used to personalize your experience and improve our services.</p>
+        <p class="mt-2">3. <strong>Data Security</strong>: We implement reasonable measures to protect your information from unauthorized access.</p>
+        <p class="mt-2">4. <strong>Third-Party Sharing</strong>: We do not sell or share your personal data with third parties except as required by law.</p>
+        <p class="mt-2">For questions, contact us at privacy@linq.com.</p>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8">
+        <div class="flex flex-col lg:flex-row lg:space-x-8">
+            <!-- News Section -->
+            <section id="news" class="flex-1">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Latest News</h2>
+                <div id="newsGrid" class="space-y-6"></div>
+            </section>
+
+            <!-- Right Sidebar Filter Panel -->
+            <aside class="sidebar lg:w-72 mt-10 lg:mt-0">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Filter by Category</h3>
+                <div class="space-y-3">
+                    <label class="flex items-center p-2 rounded-lg transition-colors">
+                        <input type="checkbox" class="category-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-400" value="Crude Oil">
+                        <span class="ml-3 text-gray-800 font-bold text-lg">Crude Oil</span>
+                    </label>
+                    <label class="flex items-center p-2 rounded-lg transition-colors">
+                        <input type="checkbox" class="category-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-400" value="Natural Gas">
+                        <span class="ml-3 text-gray-800 font-bold text-lg">Natural Gas</span>
+                    </label>
+                    <label class="flex items-center p-2 rounded-lg transition-colors">
+                        <input type="checkbox" class="category-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-400" value="Petrochemicals">
+                        <span class="ml-3 text-gray-800 font-bold text-lg">Petrochemicals</span>
+                    </label>
+                    <label class="flex items-center p-2 rounded-lg transition-colors">
+                        <input type="checkbox" class="category-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-400" value="Power">
+                        <span class="ml-3 text-gray-800 font-bold text-lg">Power</span>
+                    </label>
+                    <label class="flex items-center p-2 rounded-lg transition-colors">
+                        <input type="checkbox" class="category-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-400" value="Renewables">
+                        <span class="ml-3 text-gray-800 font-bold text-lg">Renewables</span>
+                    </label>
+                    <label class="flex items-center p-2 rounded-lg transition-colors">
+                        <input type="checkbox" class="category-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-400" value="Company News">
+                        <span class="ml-3 text-gray-800 font-bold text-lg">Company News</span>
+                    </label>
+                    <label class="flex items-center p-2 rounded-lg transition-colors">
+                        <input type="checkbox" class="category-checkbox h-5 w-5 text-blue-500 rounded focus:ring-blue-400" value="Earnings">
+                        <span class="ml-3 text-gray-800 font-bold text-lg">Earnings</span>
+                    </label>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Favorites Section -->
+        <section id="favorites" class="hidden py-10">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Your Favorited Articles</h2>
+            <div id="favoritesGrid" class="space-y-6"></div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white text-gray-600 py-6 shadow">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
+            <p>© 2025 Linq. All rights reserved.</p>
+            <div class="mt-4 md:mt-0 space-x-4">
+                <a href="#" class="hover:text-gray-800 transition-colors" onclick="showTerms(event)">Terms of Service</a>
+                <a href="#" class="hover:text-gray-800 transition-colors" onclick="showPrivacy(event)">Privacy Policy</a>
+                <a href="#" class="hover:text-gray-800 transition-colors">Contact Us</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Mock articles data (simulating fetched data, 3 per category)
+        const articlesData = [
+            { id: 1, category: 'Crude Oil', title: 'Oil Prices Surge Amid Supply Concerns', date: 'May 3, 2025', source: 'Reuters', link: 'https://example.com/article-1', image: 'https://via.placeholder.com/150x100?text=Crude+Oil' },
+            { id: 2, category: 'Crude Oil', title: 'OPEC+ Extends Production Cuts', date: 'May 3, 2025', source: 'Bloomberg', link: 'https://example.com/article-2', image: 'https://via.placeholder.com/150x100?text=Crude+Oil' },
+            { id: 3, category: 'Crude Oil', title: 'Global Demand for Crude Hits Record', date: 'May 3, 2025', source: 'CNBC', link: 'https://example.com/article-3', image: 'https://via.placeholder.com/150x100?text=Crude+Oil' },
+            { id: 4, category: 'Natural Gas', title: 'Natural Gas Prices Soar in Europe', date: 'May 3, 2025', source: 'Seeking Alpha', link: 'https://example.com/article-4', image: 'https://via.placeholder.com/150x100?text=Natural+Gas' },
+            { id: 5, category: 'Natural Gas', title: 'US Natural Gas Exports Rise', date: 'May 3, 2025', source: 'Yahoo Finance', link: 'https://example.com/article-5', image: 'https://via.placeholder.com/150x100?text=Natural+Gas' },
+            { id: 6, category: 'Natural Gas', title: 'Natural Gas Futures Hit 5-Year High', date: 'May 3, 2025', source: 'CNBC', link: 'https://example.com/article-6', image: 'https://via.placeholder.com/150x100?text=Natural+Gas' },
+            { id: 7, category: 'Petrochemicals', title: 'Petrochemical Industry Faces Challenges', date: 'May 3, 2025', source: 'Forbes', link: 'https://example.com/article-7', image: 'https://via.placeholder.com/150x100?text=Petrochemicals' },
+            { id: 8, category: 'Petrochemicals', title: 'New Petrochemical Plant Opens in Asia', date: 'May 3, 2025', source: 'Wall Street Journal', link: 'https://example.com/article-8', image: 'https://via.placeholder.com/150x100?text=Petrochemicals' },
+            { id: 9, category: 'Petrochemicals', title: 'Petrochemical Demand Grows in 2025', date: 'May 3, 2025', source: 'Financial Times', link: 'https://example.com/article-9', image: 'https://via.placeholder.com/150x100?text=Petrochemicals' },
+            { id: 10, category: 'Power', title: 'Power Grid Faces Strain in Summer', date: 'May 3, 2025', source: 'BBC', link: 'https://example.com/article-10', image: 'https://via.placeholder.com/150x100?text=Power' },
+            { id: 11, category: 'Power', title: 'Nuclear Power Makes a Comeback', date: 'May 3, 2025', source: 'Reuters', link: 'https://example.com/article-11', image: 'https://via.placeholder.com/150x100?text=Power' },
+            { id: 12, category: 'Power', title: 'Power Outages Hit Major Cities', date: 'May 3, 2025', source: 'Bloomberg', link: 'https://example.com/article-12', image: 'https://via.placeholder.com/150x100?text=Power' },
+            { id: 13, category: 'Renewables', title: 'Solar Energy Booms in 2025', date: 'May 3, 2025', source: 'CNBC', link: 'https://example.com/article-13', image: 'https://via.placeholder.com/150x100?text=Renewables' },
+            { id: 14, category: 'Renewables', title: 'Wind Power Projects Expand Globally', date: 'May 3, 2025', source: 'Seeking Alpha', link: 'https://example.com/article-14', image: 'https://via.placeholder.com/150x100?text=Renewables' },
+            { id: 15, category: 'Renewables', title: 'Renewable Energy Subsidies Increase', date: 'May 3, 2025', source: 'Yahoo Finance', link: 'https://example.com/article-15', image: 'https://via.placeholder.com/150x100?text=Renewables' },
+            { id: 16, category: 'Company News', title: 'Tesla Announces New Factory', date: 'May 3, 2025', source: 'CNBC', link: 'https://example.com/article-16', image: 'https://via.placeholder.com/150x100?text=Company+News' },
+            { id: 17, category: 'Company News', title: 'Apple Unveils New Product Line', date: 'May 3, 2025', source: 'Forbes', link: 'https://example.com/article-17', image: 'https://via.placeholder.com/150x100?text=Company+News' },
+            { id: 18, category: 'Company News', title: 'Amazon Expands Logistics Network', date: 'May 3, 2025', source: 'Wall Street Journal', link: 'https://example.com/article-18', image: 'https://via.placeholder.com/150x100?text=Company+News' },
+            { id: 19, category: 'Earnings', title: 'Google Reports Record Earnings', date: 'May 3, 2025', source: 'Financial Times', link: 'https://example.com/article-19', image: 'https://via.placeholder.com/150x100?text=Earnings' },
+            { id: 20, category: 'Earnings', title: 'Microsoft Beats Earnings Expectations', date: 'May 3, 2025', source: 'BBC', link: 'https://example.com/article-20', image: 'https://via.placeholder.com/150x100?text=Earnings' },
+            { id: 21, category: 'Earnings', title: 'ExxonMobil Posts Strong Q1 Results', date: 'May 3, 2025', source: 'Reuters', link: 'https://example.com/article-21', image: 'https://via.placeholder.com/150x100?text=Earnings' }
+        ];
+
+        // Modal functionality
+        const authModal = document.getElementById('authModal');
+        const submitArticleModal = document.getElementById('submitArticleModal');
+        const termsContent = document.getElementById('termsContent');
+        const privacyContent = document.getElementById('privacyContent');
+
+        function showModal() {
+            authModal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            authModal.style.display = 'none';
+        }
+
+        function showSubmitModal() {
+            submitArticleModal.style.display = 'flex';
+        }
+
+        function closeSubmitModal() {
+            submitArticleModal.style.display = 'none';
+        }
+
+        function showTerms(event) {
+            event.preventDefault();
+            termsContent.style.display = 'block';
+        }
+
+        function closeTerms() {
+            termsContent.style.display = 'none';
+        }
+
+        function showPrivacy(event) {
+            event.preventDefault();
+            privacyContent.style.display = 'block';
+        }
+
+        function closePrivacy() {
+            privacyContent.style.display = 'none';
+        }
+
+        // Prevent modal for logged-in users
+        let currentUser = JSON.parse(localStorage.getItem('user')) || null;
+        const favoritesTab = document.getElementById('favoritesTab');
+        const submitArticleBtn = document.getElementById('submitArticleBtn');
+        const authBtn = document.getElementById('authBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        function updateUIForUser() {
+            if (currentUser) {
+                favoritesTab.classList.remove('hidden');
+                submitArticleBtn.classList.remove('hidden');
+                authBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                favoritesTab.classList.add('hidden');
+                submitArticleBtn.classList.add('hidden');
+                authBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+        }
+
+        // Show modal only if not logged in
+        setTimeout(() => {
+            if (!currentUser) {
+                showModal();
+                setInterval(() => {
+                    if (!currentUser) {
+                        showModal();
+                    }
+                }, 5 * 60 * 1000); // Every 5 minutes
+            }
+        }, 15 * 1000); // Initial delay of 15 seconds
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target === authModal) {
+                closeModal();
+            }
+            if (event.target === submitArticleModal) {
+                closeSubmitModal();
+            }
+            if (event.target === termsContent) {
+                closeTerms();
+            }
+            if (event.target === privacyContent) {
+                closePrivacy();
+            }
+        };
+
+        // Authentication handling
+        function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            if (email && password) {
+                currentUser = { name: email.split('@')[0], email, favorites: [] };
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                updateUIForUser();
+                closeModal();
+            } else {
+                alert('Please enter email and password.');
+            }
+        }
+
+        function handleSignup() {
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            if (name && email && password) {
+                currentUser = { name, email, favorites: [] };
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                updateUIForUser();
+                closeModal();
+            } else {
+                alert('Please fill in all fields.');
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('user');
+            currentUser = null;
+            updateUIForUser();
+            showNewsSection();
+        }
+
+        // Initial UI update
+        updateUIForUser();
+
+        // Display articles
+        const newsGrid = document.getElementById('newsGrid');
+        let displayedArticles = [...articlesData];
+
+        function displayArticles(articles) {
+            newsGrid.innerHTML = '';
+            articles.forEach(article => {
+                const articleElement = document.createElement('article');
+                articleElement.className = 'rounded-lg shadow-lg flex flex-col sm:flex-row items-start sm:items-center overflow-hidden';
+                articleElement.setAttribute('data-category', article.category);
+                articleElement.innerHTML = `
+                    <img src="${article.image}" alt="${article.category}" class="news-image m-4 sm:m-0 sm:mr-4" loading="lazy">
+                    <div class="p-4 flex-1">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-800 hover:text-blue-400">
+                                    <a href="${article.link}" target="_blank">${article.title}</a>
+                                </h2>
+                                <p class="text-gray-600 text-sm mt-1">${article.date} • ${article.source} <span class="category-tag">${article.category}</span></p>
+                            </div>
+                            <button class="favorite-btn mt-1" onclick="toggleFavorite(${article.id})">☆</button>
+                        </div>
+                    </div>
+                `;
+                newsGrid.appendChild(articleElement);
+            });
+
+            // Update favorited state
+            if (currentUser && currentUser.favorites) {
+                currentUser.favorites.forEach(id => {
+                    const button = document.querySelector(`button[onclick="toggleFavorite(${id})"]`);
+                    if (button) button.classList.add('favorited');
+                });
+            }
+        }
+
+        // Initial display of articles
+        displayArticles(displayedArticles);
+
+        // Category filtering with checkboxes
+        const checkboxes = document.querySelectorAll('.category-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const selectedCategories = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+
+                if (selectedCategories.length === 0) {
+                    displayedArticles = [...articlesData];
+                } else {
+                    displayedArticles = articlesData.filter(article => 
+                        selectedCategories.includes(article.category)
+                    );
+                }
+
+                displayArticles(displayedArticles);
+            });
+        });
+
+        // Favorites handling
+        let favorites = currentUser ? currentUser.favorites : [];
+        const newsSection = document.getElementById('news');
+        const favoritesSection = document.getElementById('favorites');
+        const favoritesGrid = document.getElementById('favoritesGrid');
+
+        function toggleFavorite(articleId) {
+            if (!currentUser) {
+                alert('Please log in to favorite articles.');
+                showModal();
+                return;
+            }
+            const index = favorites.indexOf(articleId);
+            const button = document.querySelector(`button[onclick="toggleFavorite(${articleId})"]`);
+            if (index === -1) {
+                favorites.push(articleId);
+                button.classList.add('favorited');
+            } else {
+                favorites.splice(index, 1);
+                button.classList.remove('favorited');
+            }
+            currentUser.favorites = favorites;
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            updateFavoritesSection();
+        }
+
+        function updateFavoritesSection() {
+            favoritesGrid.innerHTML = '';
+            const allArticles = articlesData.filter(article => favorites.includes(article.id));
+            allArticles.forEach(article => {
+                const articleElement = document.createElement('article');
+                articleElement.className = 'rounded-lg shadow-lg flex flex-col sm:flex-row items-start sm:items-center overflow-hidden';
+                articleElement.setAttribute('data-category', article.category);
+                articleElement.innerHTML = `
+                    <img src="${article.image}" alt="${article.category}" class="news-image m-4 sm:m-0 sm:mr-4" loading="lazy">
+                    <div class="p-4 flex-1">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-800 hover:text-blue-400">
+                                    <a href="${article.link}" target="_blank">${article.title}</a>
+                                </h2>
+                                <p class="text-gray-600 text-sm mt-1">${article.date} • ${article.source} <span class="category-tag">${article.category}</span></p>
+                            </div>
+                            <button class="favorite-btn mt-1 favorited" onclick="toggleFavorite(${article.id})">☆</button>
+                        </div>
+                    </div>
+                `;
+                favoritesGrid.appendChild(articleElement);
+            });
+        }
+
+        // Show favorites section when tab is clicked
+        favoritesTab.addEventListener('click', () => {
+            newsSection.classList.add('hidden');
+            favoritesSection.classList.remove('hidden');
+            updateFavoritesSection();
+        });
+
+        // Show news section when news tab is clicked
+        document.querySelector('a[href="#news"]').addEventListener('click', () => {
+            showNewsSection();
+        });
+
+        function showNewsSection() {
+            newsSection.classList.remove('hidden');
+            favoritesSection.classList.add('hidden');
+        }
+
+        // Article submission
+        submitArticleBtn.addEventListener('click', showSubmitModal);
+
+        const articleForm = document.getElementById('articleForm');
+        articleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const title = document.getElementById('articleTitle').value;
+            const content = document.getElementById('articleContent').value;
+            const category = document.getElementById('articleCategory').value;
+            const imageFile = document.getElementById('articleImage').files[0];
+            const imageUrl = imageFile ? URL.createObjectURL(imageFile) : 'https://via.placeholder.com/150x100?text=User+Article';
+
+            const newArticleId = articlesData.length + 1;
+            const newArticle = {
+                id: newArticleId,
+                category: category,
+                title: title,
+                date: new Date().toLocaleDateString(),
+                source: currentUser.name,
+                link: `https://example.com/article-${newArticleId}`,
+                image: imageUrl
+            };
+            articlesData.unshift(newArticle);
+            displayArticles(articlesData);
+            closeSubmitModal();
+            articleForm.reset();
+        });
+
+        // Image loading fallback
+        document.querySelectorAll('img').forEach(img => {
+            img.onerror = function() {
+                this.src = 'https://via.placeholder.com/150x100?text=Image+Not+Found';
+                this.alt = 'Image Not Found';
+            };
+        });
+
+        // Welcome and tagline animation
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const tagline = document.getElementById('tagline');
+
+        function showWelcomeAndTagline() {
+            welcomeMessage.textContent = currentUser ? `Welcome ${currentUser.name}` : 'Welcome';
+            welcomeMessage.classList.add('fade-in');
+            setTimeout(() => {
+                welcomeMessage.classList.remove('fade-in');
+                welcomeMessage.classList.add('fade-out');
+                setTimeout(() => {
+                    welcomeMessage.textContent = '';
+                    welcomeMessage.classList.remove('fade-out');
+                    tagline.innerHTML = 'The <span class="highlight">Linq</span> to your Energy News';
+                    tagline.classList.add('fade-in');
+                }, 2000);
+            }, 3000);
+        }
+
+        // Run animation on page load
+        window.onload = showWelcomeAndTagline;
+
+        // Market Updates Toggle Functionality
+        const marketTabs = document.querySelectorAll('.market-tab');
+        const marketContents = document.querySelectorAll('.market-content');
+
+        marketTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                marketTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                marketContents.forEach(content => content.classList.remove('active'));
+                const contentId = `market${tab.id.replace('tab', '')}Content`;
+                document.getElementById(contentId).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
